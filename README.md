@@ -1,51 +1,48 @@
 # EchoCode Router
 
-> Smart AI gateway router — cascading failover, weighted key pool, gradual rollout.
-> 0 backend dependencies. Drop into Next.js, Express, Hono, Fastify, Bun, Deno.
+> 智能 AI 网关路由层 — 顺位故障切换 · Key 池加权 · 灰度发布。
+> 零业务依赖。可嵌入 Next.js、Express、Hono、Fastify、Bun、Deno。
 
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Node 20+](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)]()
 
-## What is this?
+## 这是什么？
 
-**EchoCode Router** is the routing core of [Echo Code](https://echo-code.dev) —
-an AI API gateway for model resellers and aggregators. It decides:
+**EchoCode Router** 是 [Echo Code](https://echo-code.dev)（模型中转站商业 SaaS）的开源路由核心。专门为模型中转商 / 聚合器设计。它决定的是：
 
-> _For this incoming `/v1/chat/completions` request, which upstream model / provider / BYOK
-> should I use, and what should I do if it fails?_
+> _这一条进来的 `/v1/chat/completions` 请求，应该走哪家上游模型 / 哪个供应商 / 哪把 BYOK（用户自带 Key），失败时怎么切换？_
 
-**Highlights:**
+**核心能力：**
 
-- **Cascading failover** — `transient` / `balance` errors → next candidate; `non-transient` → stop.
-- **Weighted key pool** — same provider, multiple BYOKs, weighted random rotation.
-- **401 immediate invalidation** — bad credentials? Mark key dead, skip on next call.
-- **5-of-5min cooldown** — per-key failure budget, automatic recovery.
-- **Gradual rollout** — `rolloutPercent` + `hash(orgId+alias) % 100`.
-- **Health probes** — every 60s; consecutive-failure threshold; health score.
-- **5-factor scoring** — `latency × success × price × region × weight` per strategy.
-- **Per-org rate limit** — in-memory token bucket.
-- **Audit + explain** — every decision JSON-serialized; `routeDecision.totalRouterMs`.
-- **Zero coupling** — you implement 4 storage interfaces (Prisma, Drizzle, Mongo, in-memory, anything).
+- **顺位故障切换（cascade）** — `transient` / `balance` 错误 → 切下一候选；`non-transient` → 立即停止。
+- **加权 Key 池** — 同一供应商下多把 BYOK，加权随机轮询。
+- **401 立即熔断** — 凭据失效？标记 Key 死亡，下一次请求自动跳过。
+- **5/5min cooldown** — 单 Key 失败预算 + 自动恢复。
+- **灰度发布** — `rolloutPercent` + `hash(orgId+alias) % 100` 桶。
+- **健康探针** — 每 60 秒；连续失败阈值；健康评分。
+- **5 因子评分** — `latency × success × price × region × weight`，7 种策略。
+- **每租户限流** — 进程内 token bucket。
+- **审计 + 决策可解释** — 每次请求 JSON 序列化 `routeDecision`；含 `totalRouterMs`。
+- **零耦合** — 你实现 4 个 storage 接口即可（Prisma / Drizzle / Mongo / 内存都行）。
 
-## Why?
+## 为什么需要这个？
 
-Most AI gateway routers are either:
+市面上的 AI 网关路由基本是这三种范式：
 
-- **Catalogs** (OpenRouter) — one API key, many models, but no real "decide for me".
-- **LLM-as-router** (NotDiamond, Martian) — train a small model to classify requests; adds 100–500ms latency, low explainability.
-- **Recommendation** (HF Inference Endpoints) — suggest, not dispatch.
+- **目录型（OpenRouter）** — 一把 Key 访问多家，但没有真正"替我选"。
+- **LLM-as-Router（NotDiamond、Martian）** — 训练/微调一个小模型给每个 query 分类；额外 100–500ms 延迟，可解释性差。
+- **路由推荐（Hugging Face Inference Endpoints 早期）** — 推荐，不调度。
 
-EchoCode Router is **rule-based + cascading**, designed for **BYOK scenarios** (users bring their own OpenAI/DeepSeek/Anthropic keys) where:
+**EchoCode Router 是第四种：纯规则评分 + 顺位 cascade**，专为 **BYOK 场景**（用户自带 OpenAI / DeepSeek / Anthropic Key）设计。这种场景里：
 
-- Explainability matters more than marginal accuracy
-- Latency is non-negotiable (P95 target: <30ms)
-- Multiple keys per provider are normal (rate-limit workarounds)
-- Vendor-side decisions should be visible & reversible (Admin UI)
+- 可解释性 > 边际准确率
+- 延迟不可妥协（P95 目标 < 30ms）
+- 一个供应商下多 Key 很正常（绕速率限制）
+- 路由决策必须可见、可回滚（运营需求）
 
-**This package is the rule + cascade engine.** The marketing site, billing, and admin UI live separately at
-[echo-code.dev](https://echo-code.dev) (commercial SaaS). This package is the open-source routing core.
+**这个包是规则 + cascade 引擎。** 营销站、计费、Admin UI 在 [echo-code.dev](https://echo-code.dev) 商业版独立维护。
 
-## Install
+## 安装
 
 ```bash
 npm install echocode-router
@@ -53,9 +50,9 @@ npm install echocode-router
 pnpm add echocode-router
 ```
 
-**Requirements:** Node.js ≥ 20.
+**要求**：Node.js ≥ 20。
 
-## Usage
+## 用法
 
 ```ts
 import {
@@ -65,29 +62,29 @@ import {
   type RouterStorage,
 } from "echocode-router";
 
-// 1. Implement RouterStorage（how you load providers / policies / byok / health）
+// 1. 实现 RouterStorage（告诉路由器怎么从你的 DB 读数据）
 const storage: RouterStorage = {
-  async loadPolicyByAlias(alias) { /* your DB */ },
-  async loadActiveModels() { /* your DB */ },
-  async loadProviders() { /* your DB */ },
-  async loadCandidatesByPolicy(policyId) { /* your DB */ },
-  async loadByokPool(orgId) { /* your DB */ },
-  async loadLatestHealthByProvider() { /* your DB */ },
-  async loadPriceBook() { /* your DB */ },
-  async loadProviderById(providerId) { /* your DB */ },
+  async loadPolicyByAlias(alias) { /* 你的 DB */ },
+  async loadActiveModels() { /* 你的 DB */ },
+  async loadProviders() { /* 你的 DB */ },
+  async loadCandidatesByPolicy(policyId) { /* 你的 DB */ },
+  async loadByokPool(orgId) { /* 你的 DB */ },
+  async loadLatestHealthByProvider() { /* 你的 DB */ },
+  async loadPriceBook() { /* 你的 DB */ },
+  async loadProviderById(providerId) { /* 你的 DB */ },
 };
 
-// 2. Score + rank candidates
+// 2. 评分 + 排序
 const { ranked, decision } = await resolveRoute(
-  "org_abc",                  // tenant id
-  "fast",                      // model name or alias
+  "org_abc",                  // 租户 id
+  "fast",                      // 模型名 或 别名
   { allowMockFallback: true },
   storage
 );
 
-// 3. Run cascade (try ranked, fall through on transient/balance errors)
+// 3. 顺位重试（cascade 编排）
 const cascade = await runCascade(ranked, async (providerId, modelId, byokId) => {
-  const adapter = getAdapter(providerId); // openai-compatible HTTP client
+  const adapter = getAdapter(providerId); // OpenAI 兼容 HTTP 客户端
   try {
     const out = await adapter.completeChat({ model: modelId, messages: [...] }, {
       apiKey: "<decrypted-byok>",
@@ -101,51 +98,51 @@ const cascade = await runCascade(ranked, async (providerId, modelId, byokId) => 
 });
 
 if (!cascade.ok) {
-  // all candidates failed; cascade.attempts has the full attempt chain
+  // 所有候选都失败；cascade.attempts 含完整尝试链
   return new Response(JSON.stringify({ error: "ALL_ATTEMPTS_FAILED" }), { status: 502 });
 }
 return new Response(JSON.stringify(cascade.attempts.at(-1).response));
 ```
 
-That's the entire integration. The router does:
+这就是完整集成。路由器负责：
 
-- Resolve alias → policy → candidates
-- Score each candidate by `latency / success / price / region / weight`
-- Sort by score, fall through cascading
-- Pick a BYOK from the candidate's pool (weighted random)
-- On `transient` (`5xx`, `429`, timeout) or `balance` (402) → next candidate
-- On `non-transient` (`4xx` other than 402/429) → stop
-- Mark failed keys for cooldown, mark `401` keys dead immediately
-- Persist `routeDecision` to your storage (your `DecisionStore`)
-- Emit a health snapshot via `probeOne()` every 60s
+- 解析 alias → 策略 → 候选池
+- 按 `latency / success / price / region / weight` 给每个候选打分
+- 按 score 排序，cascade 顺位重试
+- 从候选的 BYOK 池里加权随机选一把 Key
+- 遇到 `transient`（5xx/429/超时）或 `balance`（402）→ 切下一候选
+- 遇到 `non-transient`（4xx 但非 402/429）→ 立即停止
+- 失败 Key 标 cooldown，401 Key 立即标记失效
+- 把 `routeDecision` 写入你的 `DecisionStore`
+- 每 60s 跑 `probeOne()` 写一条 health 快照
 
-## Architecture
+## 架构
 
 ```
-User request (POST /v1/chat/completions)
+用户请求 (POST /v1/chat/completions)
     │
-    ├─ Auth + rate limit
+    ├─ 鉴权 + 限流
     │
-    ├─ resolveRoute(orgId, model, ctx, storage)        ← this package
+    ├─ resolveRoute(orgId, model, ctx, storage)        ← 本包
     │     1. loadPolicyByAlias / loadActiveModels
-    │     2. resolve rolloutPercent hash bucket
-    │     3. score candidates (5 factors × 7 strategies)
-    │     4. filter (DOWN provider / no BYOK → blocked)
-    │     5. sort by score, snapshot as decision
-    │     6. cache 50ms
+    │     2. 灰度 hash 桶判断
+    │     3. 候选打分（5 因子 × 7 策略）
+    │     4. 过滤（DOW 供应商 / 无 BYOK → blocked）
+    │     5. 按 score 排序，生成决策快照
+    │     6. 50ms 缓存
     │
-    ├─ runCascade(ranked, executor)                     ← this package
+    ├─ runCascade(ranked, executor)                     ← 本包
     │     for each candidate:
-    │       for each byok in pool (weighted random):
+    │       for each byok in pool (加权随机):
     │         try executor()
-    │         ├─ transient/balance → mark cooldown, next byok
-    │         ├─ non-transient → stop
+    │         ├─ transient/balance → 标 cooldown，下一 byok
+    │         ├─ non-transient → 停止
     │         └─ ok → return
     │
-    └─ Persist decision + usage event
+    └─ 落库 decision + usage event
 ```
 
-**Decision snapshot** (returned in every call):
+**决策快照**（每次调用都返回）：
 
 ```json
 {
@@ -166,55 +163,53 @@ User request (POST /v1/chat/completions)
 }
 ```
 
-Every call writes a `routeDecision` JSON row. Every fail writes a `fallbackChain` entry.
-Admins query via the `Explain` API or `AuditLog` table. None of this is the gateway layer's problem.
+每次调用写一条 `routeDecision` JSON；每次失败写一条 `fallbackChain`。
+管理员通过 `Explain` API 或 `AuditLog` 表查询。网关层不用管这些。
 
-## What's NOT in this package
+## 什么不在本包？
 
-Out of scope on purpose — these belong to the **commercial product** at
-[echo-code.dev](https://echo-code.dev):
+故意排除 — 属于 [echo-code.dev](https://echo-code.dev) 商业版：
 
-- Marketing site / pricing pages
-- Web console (per-tenant dashboard)
-- Admin UI for editing routes / BYOK pools
-- Payment / invoicing / Stripe / 微信 / 支付宝
-- MFA / SSO / RBAC enforcement at the auth layer
-- WAF / DDoS / Bot mitigation
-- ICP / SOC 2 / ISO 27001 compliance docs
+- 营销站 / pricing 页面
+- Web 控制台（多租户 dashboard）
+- Admin UI（编辑路由 / BYOK 池）
+- 支付 / 发票 / Stripe / 微信 / 支付宝
+- MFA / SSO / RBAC 强制
+- WAF / DDoS / Bot 防御
+- ICP / SOC 2 / ISO 27001 合规文档
 
-In other words: this package is the **routing brain**. The product is the **body**.
+**一句话：本包是路由大脑；商业版是身体。**
 
-## How it differs from competitors
+## 与主流的差异
 
 | | EchoCode Router | OpenRouter | NotDiamond | Martian |
 |---|---|---|---|---|
-| Decision model | rule + score | rule only | LLM-as-router | LLM-as-router |
-| Routing latency | ~5ms | n/a | 100–500ms | 100–500ms |
-| Explainability | full `routeDecision` per call | catalog metadata | black box | black box |
-| Cascading failover | ✅ yes | ❌ | partial | partial |
-| BYOK weighted pool | ✅ yes | n/a (they host) | n/a | n/a |
-| Gradual rollout | ✅ `rolloutPercent` hash | ❌ | ❌ | ❌ |
-| Auto health probe | ✅ every 60s | ❌ | ❌ | partial |
-| Self-hostable | ✅ 0 backend deps | ❌ closed | ❌ | ❌ |
-| License | MIT | proprietary | proprietary | proprietary |
+| 决策模型 | 规则 + 评分 | 仅规则 | LLM-as-router | LLM-as-router |
+| 路由延迟 | ~5ms | n/a | 100–500ms | 100–500ms |
+| 可解释性 | 完整 `routeDecision` | 目录元数据 | 黑盒 | 黑盒 |
+| 顺位故障切换 | ✅ 支持 | ❌ | 部分 | 部分 |
+| BYOK 加权池 | ✅ 支持 | n/a（他们托管） | n/a | n/a |
+| 灰度发布 | ✅ `rolloutPercent` hash | ❌ | ❌ | ❌ |
+| 自动健康探针 | ✅ 每 60s | ❌ | ❌ | 部分 |
+| 可自托管 | ✅ 0 业务依赖 | ❌ 闭源 | ❌ | ❌ |
+| License | MIT | 专有 | 专有 | 专有 |
 
-The technical differentiator is **cascading with BYOK pool + explainability**. If you need "route this query to the best model based on what it says", look at LLM-as-router. If you need "dispatch this user's request across their own keys with policy + observability", this is for you.
+**技术差异点：cascade + BYOK 池 + 可解释性。** 如果你需要"按 query 内容选模型"，看 LLM-as-router。如果你需要"按用户 Key + 策略 + 可观测地调度请求"，这就是你需要的。
 
-## Examples
+## 示例
 
-`examples/standalone-server.ts` — a 100-line Node HTTP server using the router.
-Run:
+`examples/standalone-server.ts` — 一个 100 行的 Node HTTP server。
 
 ```bash
 pnpm i
 pnpm example
-# in another terminal:
+# 另一终端:
 curl -X POST http://localhost:8787/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"fast","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-## Storage interfaces (you implement these)
+## Storage 接口（你实现这些）
 
 ```ts
 export interface RouterStorage {
@@ -229,46 +224,45 @@ export interface RouterStorage {
 }
 ```
 
-Plus 3 smaller interfaces: `KeyStore` (markSuccess/Failure/Invalidate), `DecisionStore`
-(writeRouteDecision), `HealthStorage` (loadActiveProviders/loadLatestHealth/loadRecentHealth/saveHealth).
+还有 3 个更小的接口：`KeyStore`（markSuccess/Failure/Invalidate）、`DecisionStore`
+（writeRouteDecision）、`HealthStorage`（loadActiveProviders/loadLatestHealth/loadRecentHealth/saveHealth）。
 
-Implement with whatever you have. Examples for Prisma, Drizzle, and in-memory live in [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md).
+Prisma / Drizzle / 内存实现示例见 [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md)。
 
-## Configuration
+## 配置
 
-| Env | Default | Description |
+| 环境变量 | 默认 | 说明 |
 |---|---|---|
-| `ECHO_PROBE_INTERVAL_MS` | `60000` | Health probe interval |
-| `ECHO_PROBE_TIMEOUT_MS` | `3000` | Per-probe HTTP timeout |
-| `ECHO_PROBE_KEY_{PROVIDER}` | – | Optional probe API key (overrides BYOK) |
-| `ECHO_RATE_LIMIT_PER_MIN` | `600` | Per-tenant rate limit |
-| `ECHO_ADMIN_BYPASS_MFA` | `0` | Dev bypass for admin auth |
+| `ECHO_PROBE_INTERVAL_MS` | `60000` | 健康探针间隔 |
+| `ECHO_PROBE_TIMEOUT_MS` | `3000` | 单次探针 HTTP 超时 |
+| `ECHO_PROBE_KEY_{PROVIDER}` | – | 探针专用 API Key（覆盖 BYOK） |
+| `ECHO_RATE_LIMIT_PER_MIN` | `600` | 每租户限流 |
+| `ECHO_ADMIN_BYPASS_MFA` | `0` | 开发环境跳过 admin MFA |
 
-## Performance
+## 性能
 
-- Routing decision: **4–9ms p95** (no LLM in the loop)
-- Cascade with N candidates: `O(N × M)` where M = byok pool size
-- Memory: `<10MB` for routing layer
-- Health probe: `60s` interval, 3s per provider timeout, parallel
+- 路由决策：**4–9ms p95**（无 LLM 推理）
+- N 个候选的 cascade：时间复杂度 `O(N × M)`，M = byok 池大小
+- 内存：路由层 < 10MB
+- 健康探针：60s 周期，每供应商 3s 超时，并行
 
-## License
+## 许可证
 
 [MIT](./LICENSE) © 2026 Echo Code
 
-## Related
+## 相关链接
 
-- **Echo Code** (commercial SaaS that this powers) — [echo-code.dev](https://echo-code.dev)
-- **Issues & discussion** — open a GitHub issue
-- **Security issues** — oss-security@echo-code.dev
+- **Echo Code**（本包驱动的商业 SaaS）— [echo-code.dev](https://echo-code.dev)
+- **Issues 与讨论** — 提 GitHub issue
+- **安全问题** — visioncore@yuanjinghexin.cn
 
-## Contributing
+## 贡献
 
-PRs welcome for:
+欢迎 PR：
 
-- New strategies (e.g. COST_BUDGET_AWARE, REQUEST_CLASS)
-- New providers (add to `src/providers/`)
-- New storage adapters (write `docs/INTEGRATIONS.md` example)
-- Bug fixes in `src/router/cascade.ts` or `score.ts`
+- 新策略（如 `COST_BUDGET_AWARE` / `REQUEST_CLASS`）
+- 新 Provider Adapter（在 `src/providers/` 加）
+- 新 Storage Adapter（写 `docs/INTEGRATIONS.md` 示例）
+- `src/router/cascade.ts` 或 `score.ts` 的 bug fix
 
-Please don't add a hard dependency on a specific DB / framework — keep this package
-`npm install`–able with zero deps beyond `node:crypto` and `globalThis`.
+**请不要引入对特定 DB / 框架的硬依赖。** 保持本包 `npm install` 即可用，除 `node:crypto` 和 `globalThis` 外零依赖。

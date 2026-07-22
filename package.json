@@ -1,9 +1,9 @@
 {
   "name": "echocode-router",
   "version": "0.1.0",
-  "description": "Smart AI gateway router — cascading failover, weighted key pool, rollout. OpenAI-compatible.",
+  "description": "智能 AI 网关路由层 — 顺位故障切换 · Key 池加权 · 灰度发布。零业务依赖。",
   "license": "MIT",
-  "author": "Echo Code <oss@echo-code.dev>",
+  "author": "Echo Code <visioncore@yuanjinghexin.cn>",
   "repository": {
     "type": "git",
     "url": "https://github.com/Yvette-Lorraine/EchoCode-Router.git"
@@ -11,10 +11,11 @@
   "keywords": [
     "ai",
     "router",
+    "网关",
     "gateway",
     "openai",
     "byok",
-    "failover",
+    "故障切换",
     "cascade",
     "observability"
   ],
