@@ -1,23 +1,22 @@
-# Standalone deployment — bring your own keys, your own DB
+# 自托管部署 — 用自己的 Key、自己的 DB
 
-This file shows the simplest way to run EchoCode Router as your own AI gateway,
-without using the Echo Code commercial SaaS.
+> 本文件展示最简单的自跑 EchoCode Router 方案。
+> 需要更稳定 / 更多策略 / 商业支持 → 看 [`echocode-router-pro`](https://github.com/Yvette-Lorraine/EchoCode-Router/blob/main/BUSINESS_VERSION.md)。
 
-## What you get
+## 你能得到什么
 
-- A single Node.js process exposing `/v1/chat/completions`
-- Routing across your own OpenAI / DeepSeek / Anthropic keys
-- A local SQLite file as the policy/usage store
-- Admin UI served at `/admin` (optional, see [Echo Code commercial](https://echo-code.dev))
+- 一个单进程 Node.js 暴露 `/v1/chat/completions`
+- 跨你的 OpenAI / DeepSeek / Anthropic Key 做路由
+- 本地 SQLite / 内存 / 任意外存
+- 开箱即用的示例（100 行 Node HTTP）
 
-## docker-compose (recommended)
+## docker-compose（推荐）
 
 ```yaml
 # docker-compose.yml
-version: "3.8"
 services:
   router:
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /app
     volumes:
       - ./router-core:/app
@@ -36,14 +35,14 @@ services:
 mkdir router-deploy && cd router-deploy
 cp ../router-core/examples/standalone-server.ts .
 cp ../router-core/examples/data.ts .
-# put your real OpenAI/DeepSeek/Anthropic keys in .env
+# 把你的真实 Key 放进 .env
 docker compose up
 curl -X POST http://localhost:8787/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"fast","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-## Run from npm
+## 从 npm 跑
 
 ```bash
 mkdir my-router && cd my-router
@@ -57,38 +56,44 @@ npm install echocode-router
 import { createServer } from "node:http";
 import { resolveRoute, runCascade, getAdapter } from "echocode-router";
 
-// 1) Implement RouterStorage（读你 DB / 文件 / 内存）
-// 2) Implement cascade executor
-// 3) Bind HTTP server
+// 1) 实现 RouterStorage（读你 DB / 文件 / 内存）
+// 2) 实现 cascade executor
+// 3) 绑定 HTTP server
 
-// ... same code as examples/standalone-server.ts
+// ... 同 examples/standalone-server.ts
 ```
 
 ```bash
 node index.js
 ```
 
-## What you give up vs. the commercial SaaS
+## 自托管 vs `echocode-router-pro`（商业版）
 
-| | self-hosted router | echo-code.dev |
+| 能力 | 自托管 OSS | `echocode-router-pro` 商业版 |
 |---|---|---|
 | Cascading failover | ✅ | ✅ |
 | Key pool / 401 invalidation | ✅ | ✅ |
 | Health probe + alerts | ✅ | ✅ |
 | Rate limit | ✅ | ✅ |
-| Admin UI | ❌ (use your own) | ✅ |
-| Payment / invoices | ❌ | ✅ |
-| Per-tenant self-serve signup | ❌ | ✅ |
-| MFA / SSO / RBAC | ❌ | ✅ |
-| WAF / DDoS | ❌ (use cloudflare in front) | ✅ |
-| Status page / incident response | ❌ | ✅ |
+| 5 因子评分权重 | 通用基线 | **18 月校准**精确权重 |
+| 策略库 | 7 种通用 | **30+ 业务策略** |
+| 流式 cascade | ❌ | ✅ |
+| Hedge mode | ❌ | ✅ |
+| LLM-as-Router hook | ❌ | ✅ |
+| Storage adapter | 自己实现 | OSS 4 种 + 商业版 Prisma/Drizzle 即用 |
+| 故障演练工具 | `x-echo-debug-fail` header | OSS 同 + 完整 chaos kit |
+| 告警集成 | 基础 | 飞书/钉钉/Slack/PagerDuty |
+| 商业支持 / SLA | ❌ | ✅ 99.9% · 7×24 · 1h 响应 |
 
-**TL;DR:** self-hosted gives you the routing engine; commercial gives you the product around it.
+**一句话：** 自跑 OSS 够用 → 想省心 / 想要更好路由效果 / 想要 SLA → 升级 `echocode-router-pro`。
 
-## When to switch
+## 什么时候升级
 
-- You have < 50 customers → self-host
-- You have 50–500 customers + need billing + team features → commercial
-- You have 500+ customers + need compliance + SLA → commercial + dedicated
+- 月 < 100K 调用 → **OSS（免费）**
+- 月 100K - 1M → **oss + 调优权重包**（一次性）
+- 月 1M-10M → **`echocode-router-pro` 订阅版**
+- 月 10M+ → **商业版 + 私有部署**
 
-See [echo-code.dev](https://echo-code.dev) for commercial plans.
+📩 联系：**visioncore@yuanjinghexin.cn**
+
+> [BUSINESS_VERSION.md](./BUSINESS_VERSION.md) 含完整对比、权重表、定价。

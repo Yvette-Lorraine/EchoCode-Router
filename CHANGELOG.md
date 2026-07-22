@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Initial open-source release extracted from [Echo Code](https://echo-code.dev) (commercial SaaS).
+- Initial open-source release of `echocode-router`（MIT）。核心路由算法提取自商业项目。"
 - **Cascading failover** with `transient` / `non-transient` / `balance` error classification.
 - **Weighted key pool** — same provider, multiple BYOKs, weighted random rotation.
 - **401 immediate invalidation** — bad credentials skip on next call.
