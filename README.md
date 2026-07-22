@@ -262,30 +262,32 @@ A: MIT — 自由用、改造、商用。
 
 ---
 
-## 💼 个人 / 企业
+## 💼 OSS vs 商业版
 
 | 用途 | 推荐 |
 |---|---|
-| 写代码 / 学习 / 自部署 / 月 < 100K 请求 | **用这个开源版**（够用、免费、MIT） |
-| 中小 SaaS / 月 100K - 1M | **OSS + 商业权重包**（一次性买权重数据）|
-| 多租户 SaaS / 灰度发布 / 控制台 / 发票 / 客服 | [Echo Code 企业版](https://echo-code.dev) — 商业支持 SLA |
-| 大型 / 合规要求 / 月 10M+ | **商业版 + 私有部署** |
+| 写代码 / 学习 / 自部署 / 月 < 100K 请求 | **用这个开源版**（`echocode-router`，MIT，够用） |
+| 中小 SaaS / 月 100K - 1M | **OSS + `echocode-router-pro` 调优权重包**（一次性买权重数据）|
+| 中型 SaaS / 月 1M-10M | **`echocode-router-pro` 订阅版**（含高级策略 + 客服）|
+| 大型 / 合规要求 / 月 10M+ | **`echocode-router-pro` 私有部署版** |
 
 > **如果你是个人 / 小团队开发者，这个项目就够用了。**
-> **如果你的业务对稳定性、合规、规模化有要求，可以升级到 Echo Code 企业版**：
+> **如果你的业务对稳定性、合规、规模化有要求，可以升级到 `echocode-router-pro` 商业版**：
 
 ### OSS 与商业版差异
 
-本开源版含**完整路由算法骨架**（cascade / Key 池 / 健康探针 / 灰度 / 限流），开箱即用。
+本开源版 (`echocode-router`, MIT) 含**完整路由算法骨架**（cascade / Key 池 / 健康探针 / 灰度 / 限流），开箱即用。
 
 **未含**的"18 月校准"商业能力，详见 **[BUSINESS_VERSION.md](./BUSINESS_VERSION.md)**：
 
 - 5 因子评分的**精确调优权重**（开源版用通用基线）
-- **30+ 业务策略库**（COST_BUDGET_AWARE / REQUEST_CLASS / 时段权重 / per-tenant 偏置…）
-- 管理控制台 / 支付 / 多租户 / SSO / MFA
-- 状态页 / 故障演练 / 客服 SLA / 商业支持
+- **30+ 业务策略库**（`COST_BUDGET_AWARE` / `REQUEST_CLASS` / 时段权重 / per-tenant 偏置…）
+- 完整流式 cascade / Hedge mode / 可选 LLM-as-Router hook
+- 飞书/钉钉/Slack/PagerDuty 告警 + 自动降级
+- 性能基准报告 + 7×24 商业支持 + 99.9% SLA
 
-> 自跑 OSS 够用 → 想省心 / 想要更好路由效果 / 想要 SLA → 升级商业版。
+> 自跑 OSS 够用 → 想省心 / 想要更好路由效果 / 想要 SLA → 升级 `echocode-router-pro`。
+> 100% 向后兼容：升级只需要改 import path，不动业务代码。
 
 📩 联系：**visioncore@yuanjinghexin.cn**
 
@@ -317,5 +319,5 @@ A: MIT — 自由用、改造、商用。
 
 [MIT](./LICENSE) © 2026 EchoCode Router
 
-> 本项目由 [Echo Code](https://echo-code.dev) 开源。商业版提供：管理控制台、计费、SSO、灰度发布 UI、客服、SLA、ICP 合规、定制开发。
+> 本项目是 `echocode-router`（MIT 开源版）。商业版 `echocode-router-pro` 提供：调优权重、30+ 高级策略、流式 cascade、LLM-as-Router hook、告警集成、客服与 SLA。
 > 个人 / 自部署 / 学习用 — 用这个版本就够。
