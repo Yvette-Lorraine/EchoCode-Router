@@ -1,0 +1,64 @@
+{
+  "name": "echocode-router",
+  "version": "0.1.0",
+  "description": "Smart AI gateway router — cascading failover, weighted key pool, rollout. OpenAI-compatible.",
+  "license": "MIT",
+  "author": "Echo Code <oss@echo-code.dev>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/echo-code/EchoCode-Router.git"
+  },
+  "keywords": [
+    "ai",
+    "router",
+    "gateway",
+    "openai",
+    "byok",
+    "failover",
+    "cascade",
+    "observability"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'use biome'",
+    "example": "tsx examples/standalone-server.ts",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.9"
+  },
+  "peerDependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@prisma/client": {
+      "optional": true
+    }
+  }
+}
