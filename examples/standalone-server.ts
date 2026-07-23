@@ -5,40 +5,46 @@
  *   POST /v1/chat/completions  →  OpenAI 兼容 + EchoCode Router 调度
  *
  * 不依赖任何 ORM / Next.js / Express。
- * 数据全部用 in-memory（见 examples/data.ts）。
+ * 数据全部存内存（见 data.ts）。
  *
  * 运行：
- *   pnpm add echocode-router
+ *   npm install echocode-router
  *   node examples/standalone-server.js
  *   curl -X POST http://localhost:8787/v1/chat/completions \
  *     -H "Content-Type: application/json" \
- *     -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}'
+ *     -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"你好"}]}'
  */
 
 import { createServer } from "node:http";
-import { resolveRoute, runCascade, classifyUpstreamError, getAdapter, ErrorClass } from "echocode-router";
+import {
+  resolveRoute,
+  runCascade,
+  getAdapter,
+} from "echocode-router";
 import { inMemoryStorage, demoData } from "./data.js";
 
-/* ========== RouterStorage 实现 — 用 demoData 当内存数据源 ========== */
+/** 从内存数据创建 RouterStorage */
 const storage = inMemoryStorage(demoData);
 
-/* ========== KeyStore 实现（Demo：用 markByokSuccess/Failure noop） ========== */
+/** 简易 KeyStore 实现（Demo 无副作用） */
 const keyStore = {
-  async markSuccess(_byokId) {},
-  async markFailure(_byokId, _status) {},
-  async markInvalid(_byokId) {},
+  async markSuccess(_byokId: string) {},
+  async markFailure(_byokId: string, _status?: number) {},
+  async markInvalid(_byokId: string) {},
 };
 
-/* ========== 简易 HTTP server ========== */
+/* ========== HTTP server ========== */
 const server = createServer(async (req, res) => {
   if (req.method !== "POST" || req.url !== "/v1/chat/completions") {
     res.writeHead(404, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: "not found" }));
     return;
   }
+
+  // 读请求体
   let body = "";
   for await (const chunk of req) body += chunk;
-  let reqJson;
+  let reqJson: any;
   try {
     reqJson = JSON.parse(body);
   } catch {
@@ -54,45 +60,43 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  let ranked, decision;
+  // 1) 路由评分
+  let ranked: any[], decision: any;
   try {
     const out = await resolveRoute("org-demo", model, { allowMockFallback: true }, storage);
     ranked = out.ranked;
     decision = out.decision;
-  } catch (e) {
+  } catch (e: any) {
     res.writeHead(400, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: { code: "UNKNOWN_MODEL", message: e.message } }));
     return;
   }
 
-  // 走 cascade 顺位重试
+  // 2) cascade 顺位重试
   const cascade = await runCascade(
     ranked,
     async (providerId, modelId, byokId) => {
-      const adapter = getAdapter(providerId);
       try {
+        const adapter = getAdapter(providerId);
         const out = await adapter.completeChat(
           { model: modelId, messages, stream: false },
-          {
-            apiKey: "demo-key", // 用 mock 时无意义
-            orgId: "org-demo",
-            keyId: byokId ?? "demo",
-          }
+          { apiKey: "demo-key", orgId: "org-demo", keyId: byokId ?? "demo" }
         );
         return { ok: true, data: out };
-      } catch (e) {
-        const err = e as any;
-        return { ok: false, status: err?.status, bodyText: err?.message, error: err };
+      } catch (e: any) {
+        return { ok: false, status: e?.status, bodyText: e?.message, error: e };
       }
-    }
+    },
+    { keyStore } as any
   );
 
+  // 3) 返回结果
   if (!cascade.ok || !cascade.chosen) {
     const last = cascade.finalError;
     res.writeHead(502, { "content-type": "application/json" });
     res.end(
       JSON.stringify({
-        error: { code: "ALL_ATTEMPTS_FAILED", message: last?.message ?? "no candidate" },
+        error: { code: "ALL_ATTEMPTS_FAILED", message: (last as any)?.message ?? "无可用候选" },
         routeDecision: {
           ...decision,
           chosen: null,
@@ -106,14 +110,14 @@ const server = createServer(async (req, res) => {
   }
 
   res.writeHead(200, { "content-type": "application/json" });
+  const responseData = cascade.attempts[cascade.attempts.length - 1].response as any;
   res.end(
     JSON.stringify({
-      ...(cascade.attempts[cascade.attempts.length - 1].response as any),
+      ...responseData,
       _echo: {
         alias: decision.alias,
         strategy: decision.strategy,
         chosen: cascade.chosen,
-        candidates: decision.candidates,
         totalRouterMs: decision.totalRouterMs,
       },
     })
@@ -122,6 +126,6 @@ const server = createServer(async (req, res) => {
 
 const PORT = Number(process.env.PORT ?? 8787);
 server.listen(PORT, () => {
-  console.log(`EchoCode Router standalone demo listening on http://localhost:${PORT}`);
-  console.log(`Try:  curl -X POST http://localhost:${PORT}/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}'`);
+  console.log(`🚀 EchoCode Router 已启动 → http://localhost:${PORT}`);
+  console.log(`   试试: curl -X POST http://localhost:${PORT}/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"你好"}]}'`);
 });

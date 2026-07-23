@@ -1,33 +1,25 @@
-# CHANGELOG
+# 更新日志
 
-All notable changes to EchoCode Router are documented in this file.
+## [0.1.0] - 2026-07-22
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/),
-and this project adheres to [Semantic Versioning](https://semver.org/).
+### 新增
 
-## [Unreleased]
+- **顺位故障切换**（transient/balance/non-transient 分类）
+- **加权 Key 池** — 同供应商多 BYOK 加权随机轮询
+- **401 立即熔断** — 凭据失效标记 + 自动跳过
+- **5/5min cooldown** — 单 Key 失败预算 + 自动恢复
+- **灰度发布** — `rolloutPercent` + `hash(orgId+alias) % 100`
+- **5 因子评分 × 7 策略**（PRICE / LATENCY / QUALITY / ...）
+- **每租户限流** — 进程内 token bucket
+- **审计 + 决策可解释** — 每次请求 `routeDecision` JSON 快照
+- **健康探针** — 每 60s + 连失阈值 + 健康评分
+- **Explain API** — `/api/v1/route/explain` 查询请求决策
+- **Standalone 示例** — 100 行 Node HTTP server
+- **完整接入文档** — Prisma / Drizzle / 内存版示例
 
-### Added
-- Initial open-source release of `echocode-router`（MIT）。核心路由算法提取自商业项目。"
-- **Cascading failover** with `transient` / `non-transient` / `balance` error classification.
-- **Weighted key pool** — same provider, multiple BYOKs, weighted random rotation.
-- **401 immediate invalidation** — bad credentials skip on next call.
-- **5-of-5min cooldown** — per-key failure budget, automatic recovery.
-- **Gradual rollout** — `rolloutPercent` + `hash(orgId+alias) % 100`.
-- **5-factor scoring** — `latency × success × price × region × weight` per strategy (7 strategies).
-- **Per-org rate limit** — in-memory token bucket.
-- **Audit + explain** — every decision JSON-serialized; `routeDecision.totalRouterMs`.
-- **Health probes** — every 60s; consecutive-failure threshold; health score.
-- **Per-user Explain API** rate limit (30 req/min).
-- **Mock provider adapter** for offline dev.
-- **OpenAI-compatible adapter** for any `/v1/chat/completions`-style upstream.
-- **Standalone example** (Node HTTP, 100 lines, no framework).
-- **Full integration guide** for Prisma + similar DBs.
+### 架构
 
-### Architecture
-- **0 backend dependencies.** All storage is injected via 4 small interfaces
-  (`RouterStorage`, `KeyStore`, `DecisionStore`, `HealthStorage`).
-- **Standalone**. Works in Node ≥ 20 / Bun / Deno.
-- No coupling to any specific ORM, framework, or database.
-
-[Unreleased]: https://github.com/echo-code/EchoCode-Router
+- **0 业务依赖** — 所有存储通过 `RouterStorage` / `KeyStore` / `DecisionStore` / `HealthStorage` 4 接口注入
+- **独立** — Node ≥ 22 / Bun / Deno
+- 不绑特定 ORM、框架、数据库
+- MIT License — 个人版开源；商业版见 [`echocode-router-pro`](https://github.com/EchoCode-Router-Pro)

@@ -1,6 +1,6 @@
 ---
-name: Bug
-about: Report a bug in EchoCode Router
+name: 报告 Bug
+about: 反馈 EchoCode Router 的 bug
 labels: bug
 ---
 
@@ -14,13 +14,13 @@ labels: bug
 2. …
 3. …
 
-## 期望
+## 期望行为
 
-<!-- 期望的行为 -->
+<!-- 应该发生什么 -->
 
-## 实际
+## 实际行为
 
-<!-- 实际发生 -->
+<!-- 实际发生了什么 -->
 
 ## 环境
 

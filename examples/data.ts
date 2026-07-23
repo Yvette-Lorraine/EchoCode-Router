@@ -1,8 +1,8 @@
 /**
- * In-memory data + RouterStorage / DecisionStore / KeyStore / HealthStorage 实现
+ * 内存数据 + RouterStorage / KeyStore / DecisionStore / HealthStorage 实现。
  * 给 examples/standalone-server.ts 用。
  *
- * 生产环境你会换成 Prisma / Drizzle / 内存缓存 / Mongo / 任意 DB。
+ * 生产环境你会换成 Prisma / Drizzle / 内存缓存 / Mongo / 任意数据库。
  */
 
 import type {
@@ -26,7 +26,7 @@ export interface DemoData {
   prices: PriceBookRow[];
 }
 
-/** Mock 数据 — 4 provider / 6 model / 2 alias / 4 candidate / 1 health record */
+/** 演示数据 — 4 provider / 6 model / 2 alias / 4 candidate / 1 health */
 export const demoData: DemoData = {
   providers: [
     { id: "openai", region: "GLOBAL" },
@@ -91,12 +91,11 @@ export const demoData: DemoData = {
   ],
 };
 
-/** In-memory RouterStorage — 适合 demo / 单元测试 / 单进程 */
+/** 内存版 RouterStorage — 适合 demo / 单元测试 */
 export function inMemoryStorage(data: DemoData) {
-  const findPolicy = (alias: string) => data.policies.find((p) => p.alias === alias && p.enabled) ?? null;
   return {
     async loadPolicyByAlias(alias: string) {
-      return findPolicy(alias);
+      return data.policies.find((p) => p.alias === alias && p.enabled) ?? null;
     },
     async loadActiveModels() {
       return data.models.filter((m) => m.status === "ACTIVE");
@@ -113,7 +112,6 @@ export function inMemoryStorage(data: DemoData) {
       return data.byok.filter((b) => b.orgId === orgId);
     },
     async loadLatestHealthByProvider() {
-      // 每 provider 只取最新（demo 数据就是最新的）
       const seen = new Set<string>();
       return data.health.filter((h) => {
         if (seen.has(h.providerId)) return false;
